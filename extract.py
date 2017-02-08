@@ -1,7 +1,9 @@
 import pyshark
 import binascii
+import decimal
 
 """
+FOR ONLY IPV4
 features to be extracted
 service
 flag
@@ -40,10 +42,11 @@ What constitutes a Connection Record:
 
 """
 class Dataset():
-    def __init__(self,time_precision):
-        #self.conn_no = 0
+    def __init__(self,timestamp_precision='second',time_based_feat_intv_sec=1):
+        self.conn_id = []
         self.record = {}
-        self.time_precision = time_precision
+        self.timestamp_precision = timestamp_precision
+        self.time_based_feat_intv_sec = time_based_feat_intv_sec #in milliseconds
 
         self.precision = {'second':1,'millisecond':1000,'microsecond':1000000, 'nanosecond':1000000000}
         self.proto = {'1':'icmp','6':'tcp','17':'udp'}
@@ -55,6 +58,14 @@ class Dataset():
         :return: true or false
         """
         if (pkt.tcp.flags_syn == '1') and (pkt.tcp.flags_ack == '0'):
+
+            #To capture the exception where the connection request is resent i.e. retransmitted, we use the loop
+            #this will ensure that the connections are unique. you can choose to use the retransmissions later.
+            for conn in self.record.keys():
+                if self.record[conn][0][1:]==[pkt.ip.src,pkt[pkt.transport_layer].srcport,
+                                                    pkt.ip.dst, pkt[pkt.transport_layer].dstport]:
+                    return False
+
             return True
         else:
             return False
@@ -70,9 +81,17 @@ class Dataset():
         :param count: the packet number in wireshark
         :return: nothing
         """
+        #print pkt.layers ,"\n"
+        #print pkt.sniff_timestamp
+        #print pkt.ip.src
+        #print pkt[pkt.transport_layer].srcport
+        #print pkt.ip.dst
+        #print pkt[pkt.transport_layer].dstport, '\n'
+
         self.record["{0}".format(count)] = [[pkt.sniff_timestamp, pkt.ip.src,
                                                     pkt[pkt.transport_layer].srcport,
                                                     pkt.ip.dst, pkt[pkt.transport_layer].dstport], []]
+        self.conn_id.append("{0}".format(count))
         #self.conn_no += 1
 
     def part_of_existing_connection(self,pkt):
@@ -82,9 +101,10 @@ class Dataset():
         :param pkt: test packet
         :return:  True/False, connection name
         """
-        for key in self.record.keys():
-            value = self.record[key][0]
-            #print "key",key,"value", value
+        #print "self.record.keys()",self.record.keys()
+        for connection_id in self.record.keys():
+            value = self.record[connection_id][0]
+            #print "connection_id",connection_id,"value", value
             #print pkt.ip.src, pkt[pkt.transport_layer].srcport, pkt.ip.dst, pkt[pkt.transport_layer].dstport
             option1 = [pkt.ip.src, pkt[pkt.transport_layer].srcport, pkt.ip.dst, pkt[pkt.transport_layer].dstport]
             option2 =[pkt.ip.dst, pkt[pkt.transport_layer].dstport, pkt.ip.src, pkt[pkt.transport_layer].srcport]
@@ -93,7 +113,15 @@ class Dataset():
             if (option1 == value[1:]) or (option2 == value[1:]):
 
                 #print "found keys"
-                return True , key
+                return True , connection_id
+    def rmv_conn_with_only_1pkt(self):
+        print "deleting connections with only one packet i.e incomplete trace connection dues to abrupt wireshark or tcpdump termination"
+        for connection_id in self.record.keys():
+            if len(self.record[connection_id][1])==1:
+                del self.record[connection_id]
+                self.conn_id.remove(connection_id)
+
+
 
     def create_record(self,allpackets):
         """
@@ -113,8 +141,16 @@ class Dataset():
 
         count = 1
         for pkt in allpackets:
+
             #print "timestamp",pkt.sniff_timestamp
-            if pkt.transport_layer == "TCP":
+            try:
+                pkt.ip.version
+            except:
+                print "contains IPV6 packets, and this application doesn't support it"
+                exit()
+            print 'count', count
+
+            if (pkt.transport_layer == "TCP"):
                 # print pkt.tcp.flags_syn,type(pkt.tcp.flags_syn),pkt.tcp.flags_ack,type(pkt.tcp.flags_ack)
                 if self.isnewconnection(pkt):
                     self.addnewconnection(pkt,count)
@@ -126,49 +162,263 @@ class Dataset():
                     #print count," appended to ", conn, "\n"
                     self.record[conn][1].append(pkt)
             count +=1
-        print self.record
+        #to remove wrongly terminated connections from the dataset
+        self.rmv_conn_with_only_1pkt()
+        print self.record, "\n"
+        #print self.conn_id
 
-    def get_duration(self,key):
+    def get_duration(self,connection_id):
 
-        duration = abs(float(self.record[key][1][0].sniff_timestamp) - float(self.record[key][1][-1].sniff_timestamp))
-        return duration*self.precision[self.time_precision]
+        try:
+            duration = abs(float(self.record[connection_id][1][0].sniff_timestamp) - float(self.record[connection_id][1][-1].sniff_timestamp))
+            return duration*self.precision[self.timestamp_precision]
+        except IndexError:
+            print "Warning: An incomplete connection found in your data-->could be because of a DoS or connection timeout"
+            return 0.0
 
-    def get_protocol(self,key):
-        return self.proto[self.record[key][1][0].ip.proto]
+    def get_protocol(self,connection_id):
+        """
+        This feature indicates the type of transport protocol used in the connection, e.g. TCP,UDP
+        :param connection_id:
+        :return:
+        """
+        #print "in get Protocol"
+        #print self.record[connection_id]
+        return self.proto[self.record[connection_id][1][0].ip.proto]
 
-    def get_service(self,key):
-        return self.record[key][0][-1]
+    def get_service(self,connection_id):
+        return self.record[connection_id][0][-1]
 
-    def get_src_bytes(self,key):
+    def get_src_bytes(self,connection_id):
         count = 0
-        for pkt in self.record[key][1]:
-            if pkt.ip.src == self.record[key][0][1]:
+        for pkt in self.record[connection_id][1]:
+            if pkt.ip.src == self.record[connection_id][0][1]:
                 #print pkt.ip.len
                 count = count + float('%s'%(pkt.length))
         #print count
         return count
 
-    def get_dst_bytes(self,key):
+    def get_dst_bytes(self,connection_id):
         count = 0
-        for pkt in self.record[key][1]:
-            if pkt.ip.dst == self.record[key][0][1]:
+        for pkt in self.record[connection_id][1]:
+            if pkt.ip.dst == self.record[connection_id][0][1]:
                 #print pkt.ip.len
                 count = count + float('%s'%(pkt.length))
         #print count
         return count
 
+    def get_flag(self,connection_id):
+        count = 0
+        for pkt in reversed(self.record[connection_id][1]):
+            if count >2:
+                return "none"
+            if pkt.tcp.flags_fin == '1':
+                return "fin"
+            if pkt.tcp.flags_reset =='1':
+                return "rst"
+            count +=1
+
+    def get_urgent_count(self,connection_id):
+        count=0
+        for pkt in self.record[connection_id][1]:
+            if pkt.tcp.flags_urg == '1':
+                count = count + 1
+        #print count
+        return count
+    def get_land(self,connection_id):
+        #print self.record[connection_id][0][1], self.record[connection_id][0][3]
+        if self.record[connection_id][0][1] == self.record[connection_id][0][3]:
+            return 1
+        else:
+            return 0
+
+    def get_time_based_feat(self):
+        #for time based calculation Decima library presicion
+        #decimal.getcontext().prec = 6
+        self.conn_interval_elem = {}
+        i=0
+        for conn in self.conn_id:
+            end = decimal.Decimal('%s'%(self.record[conn][0][0]))
+            start = end - decimal.Decimal(self.time_based_feat_intv_sec)
+
+            prev_conn = []
+            for con in reversed(self.conn_id[:i]):
+                if decimal.Decimal(self.record[con][0][0]) >= start:
+                    #print con
+                    prev_conn.append(con)
+                    #print "conn time", self.record[con][0][0], 'start', start
+                else:
+                    continue
+            self.conn_interval_elem[conn] = prev_conn
+
+            i+=1
+        #print self.conn_interval_elem
 
 
-    def get_basic_features(self):
-        for key in self.record.keys():
-            #print self.record[key][0]
-            duration = self.get_duration(key)
-            protocol = self.get_protocol(key)
-            service = self.get_service(key)
-            src_bytes = self.get_src_bytes(key)
-            dst_bytes = self.get_dst_bytes(key)
-            print "duration:", duration,' proto:', protocol,' service:', service,\
-                ' src_bytes', src_bytes,' dst_bytes', dst_bytes
+    def get_count(self,connection_id):
+        """
+        The number of connections to the same host as the current connection in the past two seconds(
+        replaced by self.time_based_feat_intv_sec)
+        :param connection_id: the id of the connection
+        :return: count
+        """
+        # FOR DNP3 (using only one master and slave), THIS FEATURE IS USELESS SINCE YOU ARE ALWAYS CONNECTING TO
+        # SAME HOST ALWAYS"
+
+        self.sam_host_count =0
+        self.serror_count = 0
+
+        self.rerror_count = 0
+
+        for con in self.conn_interval_elem[connection_id]:
+            if self.record[con][0][3] == self.record[connection_id][0][3]:
+                    # Note for a SYN ERROR, the syn packet is sent for connection establishment, but the receiver does
+                    # not respond with SNY/ACK hence the below line
+                if (self.record[connection_id][1][1].tcp.flags_syn and self.record[connection_id][1][1].tcp.flags_ack != '1'):
+                    self.serror_count += 1
+
+                #You identify the REJ error by looking at the 1st packet and the second. If the 1st is a syn request,
+                #and the second is a reset which means a rejection of the sysn request, then its a REJ error.
+
+                if (self.record[connection_id][1][0].tcp.flags_syn and self.record[connection_id][1][1].tcp.flags_reset == '1'):
+                    self.rerror_count += 1
+
+
+                self.sam_host_count += 1
+
+        return self.sam_host_count
+
+    def get_srv_count(self, connection_id):
+        """
+        The number of connections to the same service as the current connections in the past two seconds(
+        replaced by self.time_based_feat_intv_sec).
+        :param connection_id:the id of the connection
+        :return: srv_count
+        """
+        self.same_srv_count = 0
+        self.same_host_serror = 0
+
+        self.same_host_rerror = 0
+
+        for con in self.conn_interval_elem[connection_id]:
+            #same destination port. Note that self.record[0][4] is the destination port
+            if self.record[con][0][4] == self.record[connection_id][0][4]:
+                #Same srv rate The rate of connections to the same service in the past two seconds as the current connection.
+
+
+
+
+                    #Note for a SYN ERROR, the syn packet is sent for connection establishment, but the receiver does
+                    #not respond with SNY/ACK hence the below line.
+                if (self.record[connection_id][1][1].tcp.flags_syn and self.record[connection_id][1][1].tcp.flags_ack != '1'):
+                    self.same_host_serror += 1
+
+                #You identify the REJ error by looking at the 1st packet and the second. If the 1st is a syn request,
+                #and the second is a reset which means a rejection of the sysn request, then its a REJ error.
+
+                if (self.record[connection_id][1][0].tcp.flags_syn and self.record[connection_id][1][1].tcp.flags_reset == '1'):
+                    self.same_host_rerror += 1
+
+                self.same_srv_count += 1
+        return self.same_srv_count
+
+
+    def get_serror_rate(self,connection_id):
+        """
+        The rate of connections to the same host as the current connection in the past two seconds that have 'SYN' errors.
+        SYN error means that you send SYN, but  no
+        :param connection_id:
+        :return:
+        """
+        try:
+            return float(self.serror_count) / self.sam_host_count
+        except:
+            return 0.0
+    def get_rerror_rate(self,connection_id):
+        """
+        Same as with 'Serror rate' only with 'REJ' errors instead of 'SYN.'
+        :param connection_id:
+        :return:
+        """
+        try:
+            pass
+            return float(self.rerror_count) / self.sam_host_count
+        except:
+            return 0.0
+
+    def get_srv_serror_rate(self,connection_id):
+        """
+        The rate of connections to the same service as the current connections in the past two seconds that have 'SYN' errors.
+        :param connection_id:
+        :return:
+        """
+        try:
+            return float(self.same_host_serror) / self.same_srv_count
+        except:
+            return 0.0
+
+    def get_srv_rerror_rate(self,connection_id):
+        """
+        Same as with 'Srv serror rate' only with 'REJ' errors instead of 'SYN.'
+        :param connection_id:
+        :return:
+        """
+        try:
+            pass
+            return float(self.same_host_rerror) / self.same_srv_count
+        except:
+            return 0.0
+
+
+
+
+
+
+    def get_features(self):
+
+        self.get_time_based_feat()
+        for connection_id in self.conn_id:
+            #print self.record[connection_id]
+
+            """
+            Basic Features
+            """
+            duration = self.get_duration(connection_id)
+            protocol = self.get_protocol(connection_id)
+            service = self.get_service(connection_id)
+            src_bytes = self.get_src_bytes(connection_id)
+            dst_bytes = self.get_dst_bytes(connection_id)
+            flag = self.get_flag(connection_id)
+            urgent = self.get_urgent_count(connection_id)
+            land = self.get_land(connection_id)
+
+
+
+            """
+            Time based Features
+            """
+            #self.get_time_based_feat()
+            count = self.get_count(connection_id)
+            srv_count = self.get_srv_count(connection_id)
+            serror_rate = self.get_serror_rate(connection_id)
+            srv_serror_rate = self.get_srv_serror_rate(connection_id)
+            rerror_rate = self.get_rerror_rate(connection_id)
+            srv_rerror_rate = self.get_srv_rerror_rate(connection_id)
+
+            print "duration:", duration, ' proto:', protocol, ' service:', service, \
+                ' src_bytes', src_bytes, ' dst_bytes', dst_bytes, ' flag', flag, ' urgent', urgent, ' land', land, \
+                ' count', count,' srv_count', srv_count,' serror_rate',serror_rate,' srv_serror_rate',srv_serror_rate, \
+                ' rerror_rate', rerror_rate, ' srv_rerror_rate', srv_rerror_rate
+
+
+
+
+
+            
+
+            
+
+
 
 
         #pass
@@ -176,15 +426,16 @@ class Dataset():
 
 def create_dataset(allpackets):
 
-    dataset = Dataset('second')
+    dataset = Dataset(timestamp_precision='second',time_based_feat_intv_sec=2) #
     dataset.create_record(allpackets)
-    dataset.get_basic_features()
+    dataset.get_features()
+    #dataset.get_time_based_feat()
 
 
 
 
 if __name__ == "__main__":
-    cap = pyshark.FileCapture("dos_sa_master1.pcap") #normal_mst.pcap normal_slv.pcap #dos_sa_master1
+    cap = pyshark.FileCapture("test.pcap") #normal_mst.pcap normal_slv.pcap #dos_sa_master1 #test.pcap
     create_dataset(cap)
     #time = pkt.sniff_timestamp
 
