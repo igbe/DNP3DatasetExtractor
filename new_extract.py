@@ -148,7 +148,7 @@ class Dataset():
             #mind you an attempt to place an else here with return False, None causes some connections to be lost
     def rmv_conn_with_only_1pkt(self):
         print "deleting connections with only one packet i.e incomplete trace connection due to abrupt wireshark or tcpdump termination"
-        print "for future use of this and say attach it to state S0"
+        print "for future use of this, do not delete, but attach a state S0 to it."
         count = 0
         deleted_conns= []
         for connection_id in self.record.keys():
@@ -160,6 +160,94 @@ class Dataset():
                 count +=1
         print count, "connections deleted", "who's connection ID's are: ", deleted_conns
         print len(self.conn_id), "connections remaining"
+
+    def insert_conn_state(self):
+        # self.record shape is = {'connection_id':[[timestamp,ip.src,srcport, ip.dst,dstport,state],[]]}
+        print "inserting states to the connections"
+        for id in self.conn_id:
+            #print self.record[id]
+            handshake = 0
+            closing_fin=0
+            for pkt in self.record[id][1]:
+                #to insert state S0
+                if (self.record[id][0][1] == pkt.ip.src) and (self.record[id][0][5] == '') and (pkt.tcp.flags_syn == '1'):
+                    self.record[id][0][5] = 'S0'
+                    handshake +=1  #to show that SYN has been seen
+                    print "state S0 added to connection ", id
+                if (self.record[id][0][3] == pkt.ip.src) and (handshake == 1) and \
+                        (pkt.tcp.flags_syn == '1') and (pkt.tcp.flags_ack == '1'):
+                    handshake +=1
+                # To assign to assign state S1
+                if (self.record[id][0][1] == pkt.ip.src) and (handshake ==2) and \
+                        (pkt.tcp.flags_syn == '0') and (pkt.tcp.flags_ack == '1'):
+                    handshake +=1
+                    #To indicate that 3 way handshake is successful
+                    self.record[id][0][5] = 'S1'
+                    print "state S1 added to connection ", id
+
+                # to insert state REJ
+                if (self.record[id][0][3] == pkt.ip.src) and (self.record[id][0][5] == 'S0') and (pkt.tcp.flags_reset == '1'):
+                    self.record[id][0][5] = 'REJ'
+                    print "state REJ added to connection ", id
+
+                # To assign state to state S3 i.e., responder closed his side of the connection only
+                #[0][3] is responder
+                #[0][1] is the ip of the initiator
+                if (self.record[id][0][3] == pkt.ip.src) and (self.record[id][0][5] == 'S1') and (pkt.tcp.flags_fin == '1'):
+                    self.record[id][0][5] = 'S3'
+                    closing_fin +=1
+                    print "state S3 added to connection ", id
+
+                #To insert RSTSn where Sn is the state
+                if self.record[id][0][5] == 'S1':
+                    #responder
+                    if (self.record[id][0][3] == pkt.ip.src) and (pkt.tcp.flags_reset == '1'):
+                        self.record[id][0][5] = 'RSTR1'
+                    # initiator or originator
+                    elif (self.record[id][0][1] == pkt.ip.src) and (pkt.tcp.flags_reset == '1'):
+                        self.record[id][0][5] = 'RSTO1'
+
+                # To assign state to state S2 i.e., initiator closed his side of the connection only
+                if (self.record[id][0][1] == pkt.ip.src) and (self.record[id][0][5] == 'S1') and (
+                    pkt.tcp.flags_fin == '1'):
+                    self.record[id][0][5] = 'S2'
+                    closing_fin += 1
+                    print "state S2 added to connection ", id
+
+                # To insert RSTSn where Sn is the state
+                if self.record[id][0][5] == 'S2':
+                    #responder
+                    if (self.record[id][0][3] == pkt.ip.src) and (pkt.tcp.flags_reset == '1'):
+                        self.record[id][0][5] = 'RSTR2'
+                    #initiator or originator
+                    elif (self.record[id][0][1] == pkt.ip.src) and (pkt.tcp.flags_reset == '1'):
+                        self.record[id][0][5] = 'RSTO2'
+
+                # To insert RSTSn where Sn is the state
+                if self.record[id][0][5] == 'S3':
+                    #responder
+                    if (self.record[id][0][3] == pkt.ip.src) and (pkt.tcp.flags_reset == '1'):
+                        self.record[id][0][5] = 'RSTR3'
+                    # initiator or originator
+                    elif (self.record[id][0][1] == pkt.ip.src) and (pkt.tcp.flags_reset == '1'):
+                        self.record[id][0][5] = 'RSTO3'
+
+                #To set the SNY/FIN state which means that the connection had no errors and hence closed well
+                if (closing_fin ==2) or ((self.record[id][0][1] == pkt.ip.src) and (self.record[id][0][5] == 'S3') and (
+                    pkt.tcp.flags_fin == '1')) or ((self.record[id][0][3] == pkt.ip.src) and (self.record[id][0][5] == 'S2') and (
+                    pkt.tcp.flags_fin == '1')) :
+                    self.record[id][0][5] = 'SF'
+                    print "state SF added to connection ", id
+
+
+
+
+
+
+        print self.record
+
+
+
 
     def create_record(self,allpackets):
         """
@@ -196,6 +284,7 @@ class Dataset():
 
             if (pkt.transport_layer == "TCP"):
                 # print pkt.tcp.flags_syn,type(pkt.tcp.flags_syn),pkt.tcp.flags_ack,type(pkt.tcp.flags_ack)
+
                 if self.isnewconnection(pkt):
                     self.addnewconnection(pkt,count)
                     # add this pkt to record
@@ -219,6 +308,7 @@ def create_dataset(allpackets):
 
     dataset = Dataset(timestamp_precision='second',time_based_feat_intv_sec=2) #
     dataset.create_record(allpackets)
+    dataset.insert_conn_state()
     #dataset.get_features()
     #dataset.get_time_based_feat()
 
