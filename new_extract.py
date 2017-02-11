@@ -525,6 +525,217 @@ class Dataset():
 
 
 
+    def get_100_connections_ids(self,i):
+        #print "in 100 connections folder"
+        #print "i", i
+        #one_hundred_mem = []
+        if (i-100) >= 0:
+            b = i-100
+        else:
+            b = 0
+        #print "range(i-1,b-1,-1)", range(i-1,b-1,-1)
+        return [j for j in range(i-1,b-1,-1)]
+
+    #self.record = {'connection_id': [[timestamp, ip.src, srcport, ip.dst, dstport, state], []]}
+
+    def get_dst_host_count(self,i):
+        """
+        Number of connections having the same destination host IP address
+        :param i: the location of the connection being investigated
+        :return:
+        """
+        self.dst_host_count = 0
+        self.dst_host_srv_count = 0
+        self.dst_host_same_srv_rate = 0
+        self.dst_host_diff_srv_rate = 0
+        self.dst_host_same_src_port_rate = 0
+        self.dst_host_srv_diff_host_rate = 0
+        self.dst_host_srv_serror_rate = 0
+        self.dst_host_srv_rerror_rate = 0
+        self.dst_host_serror_rate = 0
+        self.dst_host_rerror_rate = 0
+
+        one_hundred_id_index = self.get_100_connections_ids(i)
+        for index in one_hundred_id_index:
+            #print "self.conn_id[index]",self.conn_id[index]
+
+            connection_id = self.conn_id[index]
+            #print "part of 100",connection_id, "main",self.conn_id[i]
+            if self.record[connection_id][0][3] == self.record[self.conn_id[i]][0][3]:
+                self.dst_host_count +=1
+
+                #for get_dst_host_same_srv_rate()
+                if self.record[connection_id][0][4] == self.record[self.conn_id[i]][0][4]:
+                    self.dst_host_same_srv_rate +=1
+
+                #for get_dst_host_diff_srv_rate()
+                if self.record[connection_id][0][4] != self.record[self.conn_id[i]][0][4]:
+                    self.dst_host_diff_srv_rate +=1
+
+                #For getting get_dst_host_serror_rate() use the following if statement
+                state = self.record[connection_id][0][5]
+                if (state =='S0') or (state =='S1') or (state =='S2') or (state =='S3'):
+                    self.dst_host_serror_rate +=1
+
+                #for getting get_dst_host_rerror_rate()
+                if state == 'REJ':
+                    self.dst_host_rerror_rate +=1
+
+
+#-------------------------------------->>>>>>>>>>>>>
+
+
+
+            #To get the dst_host_srv_count
+            # same destination port. Note that self.record[0][4] is the destination port
+            if self.record[connection_id][0][4] == self.record[self.conn_id[i]][0][4]:
+                self.dst_host_srv_count +=1
+
+                # To get the get_dst_host_same_src_port_rate
+                # same source port from the same destination port. Note that self.record[0][2] is the source port
+                if self.record[connection_id][0][2] == self.record[self.conn_id[i]][0][2]:
+                    self.dst_host_same_src_port_rate +=1
+
+                # To get the get_dst_host_srv_diff_host_rate
+                #Note the self.record[self.conn_id[i]][0][3] is the destination machine ip.
+                if self.record[connection_id][0][3] != self.record[self.conn_id[i]][0][3]:
+                    self.dst_host_srv_diff_host_rate +=1
+
+                #For getting get_dst_host_srv_serror_rate() use the following if statement
+                state = self.record[connection_id][0][5]
+                if (state =='S0') or (state =='S1') or (state =='S2') or (state =='S3'):
+                    self.dst_host_srv_serror_rate +=1
+
+                #for getting get_dst_host_srv_rerror_rate()
+                if state == 'REJ':
+                    self.dst_host_srv_rerror_rate +=1
+
+
+        return self.dst_host_count
+
+    def get_dst_host_srv_count(self,i):
+        """
+        Number of connections having the same port number
+        :param i:
+        :return:
+        """
+        try:
+            pass
+            return self.dst_host_srv_count
+        except:
+            return 0.0
+
+
+    def get_dst_host_same_srv_rate(self,i):
+
+        """
+        The percentage of connections that were to the same service, among the connections aggregated in dst_host_count()
+        :return:
+        """
+        try:
+            pass
+            return  float(self.dst_host_same_srv_rate)/self.dst_host_count
+        except:
+            return 0.0
+
+    def get_dst_host_diff_srv_rate(self,i):
+        """
+        The percentage of connections that were to different services,among the connections aggregated in dst_host_count()
+        :param i:
+        :return:
+        """
+        try:
+            pass
+            return float(self.dst_host_diff_srv_rate)/self.dst_host_count
+        except:
+            return 0.0
+
+
+    def get_dst_host_same_src_port_rate(self,i):
+        """
+        The percentage of connections that were from the same source port, among the connections aggregated in dst_host_srv_count()
+        :param i:
+        :return:
+        """
+        try:
+            pass
+            return float(self.dst_host_same_src_port_rate)/self.dst_host_srv_count
+        except:
+            return 0.0
+
+    def get_dst_host_srv_diff_host_rate(self,i):
+        """
+        The percentage of connections that were to different destination machines,among the connections aggregated in dst_host_srv_count()
+        :param i:
+        :return:
+        """
+        try:
+            pass
+            return float(self.dst_host_srv_diff_host_rate)/self.dst_host_srv_count
+        except:
+            return 0.0
+
+    def get_dst_host_srv_serror_rate(self,i):
+        """
+        The percent of connections that have activated the flag () s0, s1, s2 or s3, among the connections aggregated in dst_host_srv_count()
+        :param i:
+        :return:
+        """
+        try:
+            pass
+            return float(self.dst_host_srv_serror_rate)/self.dst_host_srv_count
+        except:
+            return 0.0
+
+    def get_dst_host_srv_rerror_rate(self,i):
+        """
+        The percentage of connections that have activated the flag() REJ,among the connections aggregated in dst_host_srv_count()
+        :param i:
+        :return:
+        """
+        try:
+            pass
+            return float(self.dst_host_srv_rerror_rate)/self.dst_host_srv_count
+        except:
+            return 0.0
+
+    def get_dst_host_serror_rate(self,i):
+        """
+        The percentage of connections that have activated the flag () s0, s1,s2 or s3, among the connections aggregated in dst_host_count()
+        :param i:
+        :return:
+        """
+        try:
+            pass
+            return float(self.dst_host_serror_rate)/self.dst_host_count
+        except:
+            return 0.0
+
+    def get_dst_host_rerror_rate(self,i):
+        """
+        The percentage of connections that have activated the flag() REJ,among the connections aggregated in dst_host_count()
+        :param i:
+        :return:
+        """
+        try:
+            pass
+            return float(self.dst_host_rerror_rate)/self.dst_host_count
+        except:
+            return 0.0
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -533,7 +744,7 @@ class Dataset():
 
 
     def get_features(self):
-
+        i = 0
         #self.get_time_based_feat()
         for connection_id in self.conn_id:
             #print self.record[connection_id]
@@ -541,37 +752,38 @@ class Dataset():
             """
             Basic Features
             """
-            duration = self.get_duration(connection_id)
-            protocol = self.get_protocol(connection_id)
-            service = self.get_service(connection_id)
-            src_bytes = self.get_src_bytes(connection_id)
-            dst_bytes = self.get_dst_bytes(connection_id)
-            flag = self.get_flag(connection_id)
-            urgent = self.get_urgent_count(connection_id)
-            land = self.get_land(connection_id)
-            #
-            #
-            #
-            """
-             Time based Features
-            """
-            self.get_time_based_feat()
-            count = self.get_count(connection_id)
-            srv_count = self.get_srv_count(connection_id)
-            serror_rate = self.get_serror_rate()
-            srv_serror_rate = self.get_srv_serror_rate()
-            rerror_rate = self.get_rerror_rate()
-            srv_rerror_rate = self.get_srv_rerror_rate()
-            same_srv_rate = self.get_same_srv_rate()
-            diff_srv_rate = self.get_diff_srv_rate()
-            srv_diff_host_rate = self.get_srv_diff_host_rate()
+            # duration = self.get_duration(connection_id)
+            # protocol = self.get_protocol(connection_id)
+            # service = self.get_service(connection_id)
+            # src_bytes = self.get_src_bytes(connection_id)
+            # dst_bytes = self.get_dst_bytes(connection_id)
+            # flag = self.get_flag(connection_id)
+            # urgent = self.get_urgent_count(connection_id)
+            # land = self.get_land(connection_id)
+            # #
+            # #
+            # #
+            # """
+            #  Time based Features
+            # """
+            # self.get_time_based_feat()
+            # count = self.get_count(connection_id)
+            # srv_count = self.get_srv_count(connection_id)
+            # serror_rate = self.get_serror_rate()
+            # srv_serror_rate = self.get_srv_serror_rate()
+            # rerror_rate = self.get_rerror_rate()
+            # srv_rerror_rate = self.get_srv_rerror_rate()
+            # same_srv_rate = self.get_same_srv_rate()
+            # diff_srv_rate = self.get_diff_srv_rate()
+            # srv_diff_host_rate = self.get_srv_diff_host_rate()
+            print self.get_dst_host_count(i)
 
-            print "duration:", duration, ' proto:', protocol, ' service:', service, \
-                ' src_bytes', src_bytes, ' dst_bytes', dst_bytes, ' flag', flag, ' urgent', urgent, ' land', land,\
-                ' count', count,' srv_count', srv_count,' serror_rate',serror_rate,' srv_serror_rate',srv_serror_rate, \
-                ' rerror_rate', rerror_rate, ' srv_rerror_rate', srv_rerror_rate, ' same_srv_rate', same_srv_rate,\
-                ' diff_srv_rate', diff_srv_rate, ' srv_diff_host_rate',srv_diff_host_rate
-
+            # print "duration:", duration, ' proto:', protocol, ' service:', service, \
+            #     ' src_bytes', src_bytes, ' dst_bytes', dst_bytes, ' flag', flag, ' urgent', urgent, ' land', land,\
+            #     ' count', count,' srv_count', srv_count,' serror_rate',serror_rate,' srv_serror_rate',srv_serror_rate, \
+            #     ' rerror_rate', rerror_rate, ' srv_rerror_rate', srv_rerror_rate, ' same_srv_rate', same_srv_rate,\
+            #     ' diff_srv_rate', diff_srv_rate, ' srv_diff_host_rate',srv_diff_host_rate
+            i +=1
 
 def create_dataset(allpackets):
 
@@ -587,7 +799,7 @@ def create_dataset(allpackets):
 
 
 if __name__ == "__main__":
-    cap = pyshark.FileCapture("dos_sa_master1.pcap") #normal_mst.pcap #normal_slv.pcap #dos_sa_master1 #test.pcap #slavefourthcaptureDoS.pcap
+    cap = pyshark.FileCapture("test1.pcap") #normal_mst.pcap #normal_slv.pcap #dos_sa_master1 #test.pcap #slavefourthcaptureDoS.pcap
     create_dataset(cap)
 
     print "\nmind you that in DoS usign any of the tools, the connections are not unique or they are duplicates a very much"
