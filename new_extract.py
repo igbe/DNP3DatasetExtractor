@@ -1,6 +1,7 @@
 import pyshark
 import binascii
 import decimal
+import csv
 
 """
 FOR ONLY IPV4
@@ -725,65 +726,89 @@ class Dataset():
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     def get_features(self):
+
         i = 0
         #self.get_time_based_feat()
+
+
+        file = open('extracted_dataset.csv', 'a')
+        h = csv.writer(file)
+        data = [
+            ['duration', 'proto', 'service', 'src_bytes', 'dst_bytes', 'flag', 'urgent', 'land', 'count', 'srv_count',
+             'serror_rate', 'srv_serror_rate', 'rerror_rate', 'srv_rerror_rate', 'same_srv_rate', 'diff_srv_rate',
+             'srv_diff_host_rate', 'dst_host_count', 'dst_host_srv_count', 'dst_host_same_srv_rate',
+             'dst_host_diff_srv_rate', 'dst_host_same_src_port_rate', 'dst_host_srv_diff_host_rate',
+             'dst_host_srv_serror_rate', 'dst_host_srv_rerror_rate', 'dst_host_serror_rate', 'dst_host_rerror_rate']]
+        h.writerows(data)
+
         for connection_id in self.conn_id:
             #print self.record[connection_id]
 
             """
             Basic Features
             """
-            # duration = self.get_duration(connection_id)
-            # protocol = self.get_protocol(connection_id)
-            # service = self.get_service(connection_id)
-            # src_bytes = self.get_src_bytes(connection_id)
-            # dst_bytes = self.get_dst_bytes(connection_id)
-            # flag = self.get_flag(connection_id)
-            # urgent = self.get_urgent_count(connection_id)
-            # land = self.get_land(connection_id)
-            # #
-            # #
-            # #
-            # """
-            #  Time based Features
-            # """
-            # self.get_time_based_feat()
-            # count = self.get_count(connection_id)
-            # srv_count = self.get_srv_count(connection_id)
-            # serror_rate = self.get_serror_rate()
-            # srv_serror_rate = self.get_srv_serror_rate()
-            # rerror_rate = self.get_rerror_rate()
-            # srv_rerror_rate = self.get_srv_rerror_rate()
-            # same_srv_rate = self.get_same_srv_rate()
-            # diff_srv_rate = self.get_diff_srv_rate()
-            # srv_diff_host_rate = self.get_srv_diff_host_rate()
-            print self.get_dst_host_count(i)
+            duration = self.get_duration(connection_id)
+            protocol = self.get_protocol(connection_id)
+            service = self.get_service(connection_id)
+            src_bytes = self.get_src_bytes(connection_id)
+            dst_bytes = self.get_dst_bytes(connection_id)
+            flag = self.get_flag(connection_id)
+            urgent = self.get_urgent_count(connection_id)
+            land = self.get_land(connection_id)
+            #
+            #
+            #
+            """
+             Time based Features
+            """
+            self.get_time_based_feat()
+            count = self.get_count(connection_id)
+            srv_count = self.get_srv_count(connection_id)
+            serror_rate = self.get_serror_rate()
+            srv_serror_rate = self.get_srv_serror_rate()
+            rerror_rate = self.get_rerror_rate()
+            srv_rerror_rate = self.get_srv_rerror_rate()
+            same_srv_rate = self.get_same_srv_rate()
+            diff_srv_rate = self.get_diff_srv_rate()
+            srv_diff_host_rate = self.get_srv_diff_host_rate()
+            dst_host_count =  self.get_dst_host_count(i)
+            dst_host_srv_count = self.get_dst_host_srv_count(i)
+            dst_host_same_srv_rate = self.get_dst_host_same_srv_rate(i)
+            dst_host_diff_srv_rate = self.get_dst_host_diff_srv_rate(i)
+            dst_host_same_src_port_rate = self.get_dst_host_same_src_port_rate(i)
+            dst_host_srv_diff_host_rate = self.get_dst_host_srv_diff_host_rate(i)
+            dst_host_srv_serror_rate = self.get_dst_host_srv_serror_rate(i)
+            dst_host_srv_rerror_rate = self.get_dst_host_srv_rerror_rate(i)
+            dst_host_serror_rate = self.get_dst_host_serror_rate(i)
+            dst_host_rerror_rate = self.get_dst_host_rerror_rate(i)
 
-            # print "duration:", duration, ' proto:', protocol, ' service:', service, \
-            #     ' src_bytes', src_bytes, ' dst_bytes', dst_bytes, ' flag', flag, ' urgent', urgent, ' land', land,\
-            #     ' count', count,' srv_count', srv_count,' serror_rate',serror_rate,' srv_serror_rate',srv_serror_rate, \
-            #     ' rerror_rate', rerror_rate, ' srv_rerror_rate', srv_rerror_rate, ' same_srv_rate', same_srv_rate,\
-            #     ' diff_srv_rate', diff_srv_rate, ' srv_diff_host_rate',srv_diff_host_rate
+            print "duration:", duration, ' proto:', protocol, ' service:', service, \
+                ' src_bytes', src_bytes, ' dst_bytes', dst_bytes, ' flag', flag, ' urgent', urgent, ' land', land,\
+                ' count', count,' srv_count', srv_count,' serror_rate',serror_rate,' srv_serror_rate',srv_serror_rate, \
+                ' rerror_rate', rerror_rate, ' srv_rerror_rate', srv_rerror_rate, ' same_srv_rate', same_srv_rate,\
+                ' diff_srv_rate', diff_srv_rate, ' srv_diff_host_rate',srv_diff_host_rate, ' dst_host_count',dst_host_count,\
+                ' dst_host_srv_count',dst_host_srv_count,' dst_host_same_srv_rate',dst_host_same_srv_rate,\
+                ' dst_host_diff_srv_rate',dst_host_diff_srv_rate, ' dst_host_same_src_port_rate',dst_host_same_src_port_rate,\
+                ' dst_host_srv_diff_host_rate',dst_host_srv_diff_host_rate,' dst_host_srv_serror_rate',dst_host_srv_serror_rate,\
+                ' dst_host_srv_rerror_rate', dst_host_srv_rerror_rate,' dst_host_serror_rate',dst_host_serror_rate,\
+                ' dst_host_rerror_rate',dst_host_rerror_rate
+
+            data = [
+                [duration, protocol, service, src_bytes, dst_bytes, flag, urgent, land, count, srv_count,serror_rate,\
+                 srv_serror_rate,rerror_rate, srv_rerror_rate, same_srv_rate, diff_srv_rate,srv_diff_host_rate,\
+                 dst_host_count, dst_host_srv_count, dst_host_same_srv_rate,dst_host_diff_srv_rate, dst_host_same_src_port_rate,\
+                 dst_host_srv_diff_host_rate,dst_host_srv_serror_rate, dst_host_srv_rerror_rate,dst_host_serror_rate,\
+                 dst_host_rerror_rate]]
+
+            h.writerows(data)
+
+
+
+
             i +=1
+
+        file.close()
 
 def create_dataset(allpackets):
 
@@ -801,6 +826,8 @@ def create_dataset(allpackets):
 if __name__ == "__main__":
     cap = pyshark.FileCapture("test1.pcap") #normal_mst.pcap #normal_slv.pcap #dos_sa_master1 #test.pcap #slavefourthcaptureDoS.pcap
     create_dataset(cap)
+
+    print "GO THROUGH ALL THE HOST-BASED FEATURES BY PRINTING THE CODE AND CONFIRMING THAT IT IS DOING WHAT THE IF FUNCTIONS HAVE BEEN SET TO DO"
 
     print "\nmind you that in DoS usign any of the tools, the connections are not unique or they are duplicates a very much"
     print "lots of them. Hence, if you confirm this after performing DDoS attack, then write a seperate script to clean this up."
