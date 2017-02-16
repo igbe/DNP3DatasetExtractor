@@ -102,6 +102,63 @@ class Dataset():
         else:
             return False
 
+    def get_rtt_avg(self, capture, ip,j):
+        print "j",j
+        if len(capture) <= 3:
+            print "in the less than 3 loop"
+            return (float(cap[1].sniff_timestamp) - float(cap[0].sniff_timestamp))
+        else:
+
+            i = 1
+            stillwaitingack = False
+            ack_no_waiting = 0
+            ackwaiting_src = ''
+            start_time = 0
+
+            rtt_list = []
+
+            for pkt in cap:
+                # print pkt
+                if i > 3:
+
+                    if (pkt.ip.src_host == ip) and (stillwaitingack == False):
+                        print j, "---->", pkt.tcp.seq, pkt.tcp.ack, pkt.tcp.len
+                        ack_no_waiting = (int(pkt.tcp.seq) + int(pkt.tcp.len))
+                        ackwaiting_src = pkt.ip.dst_host
+                        stillwaitingack = True
+                        start_time = float(pkt.sniff_timestamp)
+                        print "waiting for ack ", ack_no_waiting, "start_time ", start_time, "\n"
+                        i += 1
+                        continue
+                        # i+=1
+                    if (pkt.ip.src_host == ip) and (stillwaitingack == True):
+                        print j, "---->", pkt.tcp.seq, pkt.tcp.ack, pkt.tcp.len
+                        ack_no_waiting = (int(pkt.tcp.seq) + int(pkt.tcp.len))
+                        print "in second still waiting"
+                        start_time = float(pkt.sniff_timestamp)
+                        print "waiting for ack ", ack_no_waiting, "start_time ", start_time, "\n"
+                        i += 1
+                        continue
+
+                        # i += 1
+
+                    if (pkt.ip.src_host == ackwaiting_src) and (stillwaitingack == True):
+                        if int(pkt.tcp.ack) == ack_no_waiting:
+                            stillwaitingack = False
+                            seen_time = float(pkt.sniff_timestamp)
+                            print j, "<----", pkt.tcp.seq, pkt.tcp.ack
+                            print "seen waiting for ack ", ack_no_waiting
+                            rtt = seen_time - start_time
+                            rtt_list.append(rtt)
+
+                            print "round trip time (sec) ", rtt, "\n"
+                            # i += 1
+
+                i += 1
+
+            avg = sum(rtt_list) / len(rtt_list)
+            return avg
+
     def addnewconnection(self,pkt,count):
         """
         function for adding a new connection and its name to a connection list when new one if found
@@ -724,22 +781,137 @@ class Dataset():
         except:
             return 0.0
 
+    def contains_dnp3_pckt(self,connection_id):
+        count = False
+        for pkt in self.record[connection_id][1]:
+            if pkt.highest_layer =='DNP3':
+                count = True
+                break
+        return count
+
+    def tot_dnp3_payload_len(self,connection_id):
+        """
+        the total payload of all DNP3 payload in the connection
+        :param connection_id:
+        :return:
+        """
+        #print "self.record[connection_id]",self.record[connection_id]
+        count = 0
+        if '20000' in self.record[connection_id][0]:
+        #if (self.record[connection_id][0][2] or self.record[connection_id][0][4]) == '20000':
+            #print "it is going to dnp3"
+            for pkt in self.record[connection_id][1]:
+                if pkt.highest_layer == 'DNP3':
+                    count += int(pkt.dnp3.len)
+            return count
+        else:
+            return 0
+
+    def min_payload_len(self,connection_id):
+        """
+        the minimum DNP3 payload length  in the connection. For the DoS packets, this value might be much lower or higher
+        than the DNP3 packets.
+        :param connection_id:
+        :return: the minimum payload length
+        """
+        i=0
+        count = 0
+        if '20000' in self.record[connection_id][0]:
+        #if (self.record[connection_id][0][2] or self.record[connection_id][0][4]) == '20000':
+            for pkt in self.record[connection_id][1]:
+                if pkt.highest_layer == 'DNP3':
+                    if i == 0:
+                        count = int(pkt.dnp3.len)
+                        i=1
+                    else:
+                        if int(pkt.dnp3.len) < count:
+                            count = int(pkt.dnp3.len)
+
+            return count
+        else:
+            return 0
+
+    def disable_cold_or_warm_in_conn(self,connection_id):
+        """
+
+        :param connection_id:
+        :return:
+        """
+        seen = False
+        if '20000' in self.record[connection_id][0]:
+        #if (self.record[connection_id][0][2] or self.record[connection_id][0][4]) == '20000':
+            for pkt in self.record[connection_id][1]:
+                if pkt.highest_layer == 'DNP3':
+                    if pkt.tcp.dstport == '20000':
+                        #print pkt.dnp3
+                        #print "pkt.dnp3.al_func",pkt.dnp3.al_func
+
+                        if pkt.dnp3.al_func in ['13','14','21']:
+                            seen =True
+            return seen
+        else:
+            return seen
+
+    def func_code_not_supported_count(self,connection_id):
+        count = 0
+        if '20000' in self.record[connection_id][0]:
+        #if (self.record[connection_id][0][2] or self.record[connection_id][0][4]) == '20000':
+            for pkt in self.record[connection_id][1]:
+                if pkt.tcp.srcport == '20000':
+                    if pkt.highest_layer == 'DNP3':
+                        #print "connection_id",connection_id
+                        #print "pkt.dnp3", pkt.dnp3
+                        #print "pkt.dnp3.al_iin_fcni",pkt.dnp3.al_iin_fcni
+                        try:
+                            if pkt.dnp3.al_iin_fcni == '1':
+                                count +=1
+                        except:
+                            pass
+            return count
+        else:
+            return count
+
+    def dnp3_rttd(self,connection_id,i):
+
+        capture = self.record[connection_id][1]
+        ip = self.record[connection_id][0][1]
+
+        return self.get_rtt_avg(capture, ip,i)
+        #pass
 
 
-    def get_features(self):
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    def get_features(self,getDNP3=False):
 
         i = 0
         #self.get_time_based_feat()
+        print 'i = ',i
 
-
-        file = open('extracted_dataset.csv', 'a')
+        file = open('extracted_dataset2.csv', 'a')
         h = csv.writer(file)
         data = [
             ['duration', 'proto', 'service', 'src_bytes', 'dst_bytes', 'flag', 'urgent', 'land', 'count', 'srv_count',
              'serror_rate', 'srv_serror_rate', 'rerror_rate', 'srv_rerror_rate', 'same_srv_rate', 'diff_srv_rate',
              'srv_diff_host_rate', 'dst_host_count', 'dst_host_srv_count', 'dst_host_same_srv_rate',
              'dst_host_diff_srv_rate', 'dst_host_same_src_port_rate', 'dst_host_srv_diff_host_rate',
-             'dst_host_srv_serror_rate', 'dst_host_srv_rerror_rate', 'dst_host_serror_rate', 'dst_host_rerror_rate']]
+             'dst_host_srv_serror_rate', 'dst_host_srv_rerror_rate', 'dst_host_serror_rate', 'dst_host_rerror_rate',
+             'contains_dnp3_pckt','tot_dnp3_payload_len','min_payload_len','disable_cold_or_warm_in_conn', \
+                 'func_code_not_supported_count','rttd']]
         h.writerows(data)
 
         for connection_id in self.conn_id:
@@ -756,7 +928,7 @@ class Dataset():
             flag = self.get_flag(connection_id)
             urgent = self.get_urgent_count(connection_id)
             land = self.get_land(connection_id)
-            #
+            # #
             #
             #
             """
@@ -783,6 +955,27 @@ class Dataset():
             dst_host_serror_rate = self.get_dst_host_serror_rate(i)
             dst_host_rerror_rate = self.get_dst_host_rerror_rate(i)
 
+            #print self.dnp3_rttd(connection_id,i)
+
+            #round trip time
+            rttd = self.dnp3_rttd(connection_id, i)
+
+            #Get DNP3 Properties
+            if getDNP3 == True:
+                contains_dnp3_pckt = self.contains_dnp3_pckt(connection_id)
+                tot_dnp3_payload_len = self.tot_dnp3_payload_len(connection_id)
+                min_payload_len = self.min_payload_len(connection_id)
+                disable_cold_or_warm_in_conn = self.disable_cold_or_warm_in_conn(connection_id)
+                func_code_not_supported_count = self.func_code_not_supported_count(connection_id)
+
+
+
+
+
+
+
+
+
             print "duration:", duration, ' proto:', protocol, ' service:', service, \
                 ' src_bytes', src_bytes, ' dst_bytes', dst_bytes, ' flag', flag, ' urgent', urgent, ' land', land,\
                 ' count', count,' srv_count', srv_count,' serror_rate',serror_rate,' srv_serror_rate',srv_serror_rate, \
@@ -792,14 +985,17 @@ class Dataset():
                 ' dst_host_diff_srv_rate',dst_host_diff_srv_rate, ' dst_host_same_src_port_rate',dst_host_same_src_port_rate,\
                 ' dst_host_srv_diff_host_rate',dst_host_srv_diff_host_rate,' dst_host_srv_serror_rate',dst_host_srv_serror_rate,\
                 ' dst_host_srv_rerror_rate', dst_host_srv_rerror_rate,' dst_host_serror_rate',dst_host_serror_rate,\
-                ' dst_host_rerror_rate',dst_host_rerror_rate
+                ' dst_host_rerror_rate',dst_host_rerror_rate,'contains_dnp3_pckt ',contains_dnp3_pckt, 'tot_dnp3_payload_len ', \
+                tot_dnp3_payload_len, 'min_payload_len ',min_payload_len,'disable_cold_or_warm_in_conn ',disable_cold_or_warm_in_conn,\
+                'func_code_not_supported_count ',func_code_not_supported_count, 'rttd ', rttd
 
             data = [
                 [duration, protocol, service, src_bytes, dst_bytes, flag, urgent, land, count, srv_count,serror_rate,\
                  srv_serror_rate,rerror_rate, srv_rerror_rate, same_srv_rate, diff_srv_rate,srv_diff_host_rate,\
                  dst_host_count, dst_host_srv_count, dst_host_same_srv_rate,dst_host_diff_srv_rate, dst_host_same_src_port_rate,\
                  dst_host_srv_diff_host_rate,dst_host_srv_serror_rate, dst_host_srv_rerror_rate,dst_host_serror_rate,\
-                 dst_host_rerror_rate]]
+                 dst_host_rerror_rate,contains_dnp3_pckt,tot_dnp3_payload_len,min_payload_len,disable_cold_or_warm_in_conn, \
+                 func_code_not_supported_count,rttd]]
 
             h.writerows(data)
 
@@ -816,15 +1012,15 @@ def create_dataset(allpackets):
     dataset.create_record(allpackets)
     dataset.insert_conn_state()
     print "\n"
-    dataset.get_features()
+    dataset.get_features(getDNP3=True)
     #print dataset.record
-    #dataset.get_time_based_feat()
+
 
 
 
 
 if __name__ == "__main__":
-    cap = pyshark.FileCapture("test1.pcap") #normal_mst.pcap #normal_slv.pcap #dos_sa_master1 #test.pcap #slavefourthcaptureDoS.pcap
+    cap = pyshark.FileCapture("less2.pcap") #normal_mst.pcap #normal_slv.pcap #dos_sa_master1 #test.pcap #slavefourthcaptureDoS.pcap
     create_dataset(cap)
 
     print "GO THROUGH ALL THE HOST-BASED FEATURES BY PRINTING THE CODE AND CONFIRMING THAT IT IS DOING WHAT THE IF FUNCTIONS HAVE BEEN SET TO DO"
@@ -833,5 +1029,6 @@ if __name__ == "__main__":
     print "lots of them. Hence, if you confirm this after performing DDoS attack, then write a seperate script to clean this up."
     print "You can add this script to this code or find a way to ensure that-------->> "
     print "not EDITCAP can be used for this http://www.wireshark.org/docs/man-pages/editcap.html"
-    #time = pkt.sniff_timestamp
+
+
 
