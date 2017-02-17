@@ -103,9 +103,9 @@ class Dataset():
             return False
 
     def get_rtt_avg(self, capture, ip,j):
-        print "j",j
+#        print "j",j
         if len(capture) <= 3:
-            print "in the less than 3 loop"
+ #           print "in the less than 3 loop"
             return (float(cap[1].sniff_timestamp) - float(cap[0].sniff_timestamp))
         else:
 
@@ -122,21 +122,21 @@ class Dataset():
                 if i > 3:
 
                     if (pkt.ip.src_host == ip) and (stillwaitingack == False):
-                        print j, "---->", pkt.tcp.seq, pkt.tcp.ack, pkt.tcp.len
+#                        print j, "---->", pkt.tcp.seq, pkt.tcp.ack, pkt.tcp.len
                         ack_no_waiting = (int(pkt.tcp.seq) + int(pkt.tcp.len))
                         ackwaiting_src = pkt.ip.dst_host
                         stillwaitingack = True
                         start_time = float(pkt.sniff_timestamp)
-                        print "waiting for ack ", ack_no_waiting, "start_time ", start_time, "\n"
+#                        print "waiting for ack ", ack_no_waiting, "start_time ", start_time, "\n"
                         i += 1
                         continue
                         # i+=1
                     if (pkt.ip.src_host == ip) and (stillwaitingack == True):
-                        print j, "---->", pkt.tcp.seq, pkt.tcp.ack, pkt.tcp.len
+ #                       print j, "---->", pkt.tcp.seq, pkt.tcp.ack, pkt.tcp.len
                         ack_no_waiting = (int(pkt.tcp.seq) + int(pkt.tcp.len))
-                        print "in second still waiting"
+ #                       print "in second still waiting"
                         start_time = float(pkt.sniff_timestamp)
-                        print "waiting for ack ", ack_no_waiting, "start_time ", start_time, "\n"
+ #                       print "waiting for ack ", ack_no_waiting, "start_time ", start_time, "\n"
                         i += 1
                         continue
 
@@ -146,12 +146,12 @@ class Dataset():
                         if int(pkt.tcp.ack) == ack_no_waiting:
                             stillwaitingack = False
                             seen_time = float(pkt.sniff_timestamp)
-                            print j, "<----", pkt.tcp.seq, pkt.tcp.ack
-                            print "seen waiting for ack ", ack_no_waiting
+ #                           print j, "<----", pkt.tcp.seq, pkt.tcp.ack
+  #                          print "seen waiting for ack ", ack_no_waiting
                             rtt = seen_time - start_time
                             rtt_list.append(rtt)
 
-                            print "round trip time (sec) ", rtt, "\n"
+#                            print "round trip time (sec) ", rtt, "\n"
                             # i += 1
 
                 i += 1
@@ -448,8 +448,12 @@ class Dataset():
         self.diff_srv_rate_count = 0
 
         for con in self.conn_interval_elem[connection_id]:
+            #print "self.conn_interval_elem[connection_id]", self.record[con]
             if self.record[con][0][3] == self.record[connection_id][0][3]:
                 #For getting serror_rate() use the following if statement
+                #print "self.record[con][0][3]",self.record[con][0][3]
+                #print "self.record[connection_id][0][3]",self.record[connection_id][0][3]
+
                 state = self.record[con][0][5]
                 if (state =='S0') or (state =='S1') or (state =='S2') or (state =='S3'):
                     self.serror_count +=1
@@ -1020,7 +1024,7 @@ def create_dataset(allpackets):
 
 
 if __name__ == "__main__":
-    cap = pyshark.FileCapture("less2.pcap") #normal_mst.pcap #normal_slv.pcap #dos_sa_master1 #test.pcap #slavefourthcaptureDoS.pcap
+    cap = pyshark.FileCapture("dnp3dataset_capture.pcap") #normal_mst.pcap #normal_slv.pcap #dos_sa_master1 #test.pcap #slavefourthcaptureDoS.pcap
     create_dataset(cap)
 
     print "GO THROUGH ALL THE HOST-BASED FEATURES BY PRINTING THE CODE AND CONFIRMING THAT IT IS DOING WHAT THE IF FUNCTIONS HAVE BEEN SET TO DO"
