@@ -886,30 +886,16 @@ class Dataset():
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     def get_features(self,getDNP3=False):
 
         i = 0
         #self.get_time_based_feat()
         print 'i = ',i
 
-        file = open('extracted_dataset2.csv', 'a')
+        file = open('extracted_dataset_final.csv', 'a')
         h = csv.writer(file)
         data = [
-            ['duration', 'proto', 'service', 'src_bytes', 'dst_bytes', 'flag', 'urgent', 'land', 'count', 'srv_count',
+            ['conn_id','duration', 'proto', 'service', 'src_bytes', 'dst_bytes', 'flag', 'urgent', 'land', 'count', 'srv_count',
              'serror_rate', 'srv_serror_rate', 'rerror_rate', 'srv_rerror_rate', 'same_srv_rate', 'diff_srv_rate',
              'srv_diff_host_rate', 'dst_host_count', 'dst_host_srv_count', 'dst_host_same_srv_rate',
              'dst_host_diff_srv_rate', 'dst_host_same_src_port_rate', 'dst_host_srv_diff_host_rate',
@@ -980,21 +966,21 @@ class Dataset():
 
 
 
-            print "duration:", duration, ' proto:', protocol, ' service:', service, \
-                ' src_bytes', src_bytes, ' dst_bytes', dst_bytes, ' flag', flag, ' urgent', urgent, ' land', land,\
-                ' count', count,' srv_count', srv_count,' serror_rate',serror_rate,' srv_serror_rate',srv_serror_rate, \
-                ' rerror_rate', rerror_rate, ' srv_rerror_rate', srv_rerror_rate, ' same_srv_rate', same_srv_rate,\
-                ' diff_srv_rate', diff_srv_rate, ' srv_diff_host_rate',srv_diff_host_rate, ' dst_host_count',dst_host_count,\
-                ' dst_host_srv_count',dst_host_srv_count,' dst_host_same_srv_rate',dst_host_same_srv_rate,\
-                ' dst_host_diff_srv_rate',dst_host_diff_srv_rate, ' dst_host_same_src_port_rate',dst_host_same_src_port_rate,\
-                ' dst_host_srv_diff_host_rate',dst_host_srv_diff_host_rate,' dst_host_srv_serror_rate',dst_host_srv_serror_rate,\
-                ' dst_host_srv_rerror_rate', dst_host_srv_rerror_rate,' dst_host_serror_rate',dst_host_serror_rate,\
-                ' dst_host_rerror_rate',dst_host_rerror_rate,'contains_dnp3_pckt ',contains_dnp3_pckt, 'tot_dnp3_payload_len ', \
-                tot_dnp3_payload_len, 'min_payload_len ',min_payload_len,'disable_cold_or_warm_in_conn ',disable_cold_or_warm_in_conn,\
-                'func_code_not_supported_count ',func_code_not_supported_count, 'rttd ', rttd
+            # print 'conn_id ',connection_id,"duration:", duration, ' proto:', protocol, ' service:', service, \
+            #     ' src_bytes', src_bytes, ' dst_bytes', dst_bytes, ' flag', flag, ' urgent', urgent, ' land', land,\
+            #     ' count', count,' srv_count', srv_count,' serror_rate',serror_rate,' srv_serror_rate',srv_serror_rate, \
+            #     ' rerror_rate', rerror_rate, ' srv_rerror_rate', srv_rerror_rate, ' same_srv_rate', same_srv_rate,\
+            #     ' diff_srv_rate', diff_srv_rate, ' srv_diff_host_rate',srv_diff_host_rate, ' dst_host_count',dst_host_count,\
+            #     ' dst_host_srv_count',dst_host_srv_count,' dst_host_same_srv_rate',dst_host_same_srv_rate,\
+            #     ' dst_host_diff_srv_rate',dst_host_diff_srv_rate, ' dst_host_same_src_port_rate',dst_host_same_src_port_rate,\
+            #     ' dst_host_srv_diff_host_rate',dst_host_srv_diff_host_rate,' dst_host_srv_serror_rate',dst_host_srv_serror_rate,\
+            #     ' dst_host_srv_rerror_rate', dst_host_srv_rerror_rate,' dst_host_serror_rate',dst_host_serror_rate,\
+            #     ' dst_host_rerror_rate',dst_host_rerror_rate,'contains_dnp3_pckt ',contains_dnp3_pckt, 'tot_dnp3_payload_len ', \
+            #     tot_dnp3_payload_len, 'min_payload_len ',min_payload_len,'disable_cold_or_warm_in_conn ',disable_cold_or_warm_in_conn,\
+            #     'func_code_not_supported_count ',func_code_not_supported_count, 'rttd ', rttd
 
             data = [
-                [duration, protocol, service, src_bytes, dst_bytes, flag, urgent, land, count, srv_count,serror_rate,\
+                [connection_id,duration, protocol, service, src_bytes, dst_bytes, flag, urgent, land, count, srv_count,serror_rate,\
                  srv_serror_rate,rerror_rate, srv_rerror_rate, same_srv_rate, diff_srv_rate,srv_diff_host_rate,\
                  dst_host_count, dst_host_srv_count, dst_host_same_srv_rate,dst_host_diff_srv_rate, dst_host_same_src_port_rate,\
                  dst_host_srv_diff_host_rate,dst_host_srv_serror_rate, dst_host_srv_rerror_rate,dst_host_serror_rate,\
@@ -1024,7 +1010,7 @@ def create_dataset(allpackets):
 
 
 if __name__ == "__main__":
-    cap = pyshark.FileCapture("dnp3dataset_capture.pcap") #normal_mst.pcap #normal_slv.pcap #dos_sa_master1 #test.pcap #slavefourthcaptureDoS.pcap
+    cap = pyshark.FileCapture("dnp3dataset_capture.pcap") #normal_mst.pcap #normal_slv.pcap #dos_sa_master1 #test.pcap #slavefourthcaptureDoS.pcap dnp3dataset_capture
     create_dataset(cap)
 
     print "GO THROUGH ALL THE HOST-BASED FEATURES BY PRINTING THE CODE AND CONFIRMING THAT IT IS DOING WHAT THE IF FUNCTIONS HAVE BEEN SET TO DO"
